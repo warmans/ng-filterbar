@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import {FreetextConfig, SelectableConfig, SelectableKind} from '../../../modules/filterbar/src/bar/bar.component';
 
 @Component({
   selector: 'app-root',
@@ -6,5 +7,13 @@ import { Component } from '@angular/core';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'app';
+
+  selectables: SelectableConfig[] = [
+    <FreetextConfig>{
+      kind: SelectableKind.FREETEXT,
+      field: 'foo',
+      label: 'Foo',
+      helpText: "A sample value without."
+    }
+  ];
 }

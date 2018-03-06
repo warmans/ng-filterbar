@@ -1,0 +1,88 @@
+
+.filterbar-container {
+  width: 100%;
+  border: 1px solid #e5e5e5;
+  background-color: #fff;
+  padding: 5px;
+
+  &:hover, &.focus {
+     border-color: #73afea;
+  }
+
+  .input-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+
+    .selected {
+      display: flex;
+      flex-direction: row;
+
+      .item {
+        background-color: #f8f8f8;
+        display: flex;
+        margin-right: 5px;
+
+        .label {
+          padding: 5px 5px 5px 5px;
+        }
+        .comparison {
+          padding: 5px 0px 5px 0px;
+          margin: 0px 5px 0px 5px;
+        }
+        .values {
+          padding: 5px 5px 5px 5px;
+        }
+        .close {
+          padding: 5px 5px 5px 5px;
+        }
+      }
+    }
+
+    .input {
+      position: relative;
+      width: 100%;
+      padding: 5px;
+
+      input {
+        position: relative;
+        min-width: 200px;
+        border: transparent;
+        width: 100%;
+        outline: none;
+        border-color: transparent;
+        box-shadow: none;
+      }
+
+      .selectables {
+        position: absolute;
+        background-color: #fff;
+        margin-top: 15px;
+        min-width: 280px;
+        max-height: 312px;
+        border: 1px solid #e5e5e5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+        .item {
+          padding: 10px;
+          &:hover {
+             background-color: #f8f8f8;
+          }
+          .title {
+            font-weight: bold;
+            .icon {
+              margin: 5px 10px 5px 0px;
+            }
+          }
+          .help {
+            font-size: 0.8em;
+            color: #666;
+          }
+        }
+      }
+    }
+    .clear {
+      padding: 5px 5px 5px 5px;
+    }
+  }
+}
