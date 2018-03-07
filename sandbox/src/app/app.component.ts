@@ -8,12 +8,21 @@ import {FreetextConfig, SelectableConfig, SelectableKind} from '../../../modules
 })
 export class AppComponent {
 
-  selectables: SelectableConfig[] = [
-    <FreetextConfig>{
+  selectables: SelectableConfig[] = [{
       kind: SelectableKind.FREETEXT,
       field: 'foo',
       label: 'Foo',
-      helpText: "A sample value without."
-    }
-  ];
+      helpText: 'A sample value without.',
+      validComparisons: [{value: '='}, {value: '>'}, {value: '<'}]
+    }, {
+      kind: SelectableKind.FREETEXT,
+      field: 'bar',
+      label: 'Boo',
+      helpText: 'Another value.'
+    }, {
+    kind: SelectableKind.FREETEXT,
+    field: 'baz',
+    label: 'Baz',
+    helpText: '',
+  }];
 }

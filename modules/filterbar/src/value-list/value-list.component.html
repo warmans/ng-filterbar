@@ -1,0 +1,11 @@
+<div class="value-list">
+  <div class="value" *ngFor="let value of filteredValues();let i = index;" (click)="select(value)" [ngClass]="{'active': i === selectedValue}">
+    <div class="title" >
+      <span class="icon" *ngIf="value.icon">{{value.icon}}</span>
+      <span class="label">{{value.label || value.value}}</span>
+    </div>
+    <div class="help" *ngIf="value.helpText">
+    {{value.helpText}}
+    </div>
+  </div>
+</div>

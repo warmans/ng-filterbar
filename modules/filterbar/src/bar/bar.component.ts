@@ -1,4 +1,5 @@
-import {Component, ElementRef, Input, ViewChild} from '@angular/core';
+import {Component, ElementRef, EventEmitter, Input, ViewChild} from '@angular/core';
+import {Value} from '../value-list/value-list.component';
 
 @Component({
   selector: 'ng-filterbar',
@@ -16,15 +17,13 @@ export class BarComponent {
   @Input()
   set config(config: SelectableConfig[]) {
     this.configs = config;
-    this.selectables = [];
-    this.configs.forEach((c) => {
-      this.selectables.push(SelectableFactory(c));
-    });
   }
 
   get config(): SelectableConfig[] {
     return this.configs;
   }
+
+  public keyboardEvents: EventEmitter<string> = new EventEmitter();
 
   /**
    * Raw configs as passed in by parent.
@@ -32,11 +31,6 @@ export class BarComponent {
    */
   private configs: SelectableConfig[] = [];
 
-  /**
-   * Concrete inputs based on configs.
-   * @type {Selectable[]}
-   */
-  public selectables: Selectable[] = [];
 
   /**
    * before being added to selected values the selectable is in an incomplete pending state.
@@ -48,57 +42,92 @@ export class BarComponent {
   public state: State = State.IDLE;
 
   public states = State;
+
   public kinds = SelectableKind;
 
   constructor(private _eref: ElementRef) {
   }
 
-  onFocus(event: any) {
+  focus() {
+    this.primaryInput.nativeElement.focus();
+  }
+
+  onFocus() {
     this.state = (this.pending) ? State.IN_SELECTABLE : State.SELECTING;
   }
 
   onBlur(event: any) {
-    if (!this._eref.nativeElement.contains(event.target)) {
-      this.state = State.IDLE;
-    }
+    // if (!this._eref.nativeElement.contains(event.target)) {
+    //   this.state = State.IDLE;
+    // }
   }
 
   onKeypress(event: string) {
-    console.log(event);
+
+    // do top level actions
     switch (event) {
       case 'Escape':
-        this.toSelecting();
+        if (this.state === State.SELECTING) {
+          this.toIdle();
+        } else {
+          this.toSelecting();
+        }
         break;
       default:
+        // if the control is idle but a key is pressed re-activate it
+        if (this.state === State.IDLE) {
+          this.onFocus();
+        }
         if (this.pending) {
           if (this.pending.onKeypress(event, this.primaryInput.nativeElement)) {
             this.selectPending();
           }
-        } else {
-          //todo: manipulate selectable list
         }
     }
+
+    // forward event to any other components e.g. value-list
+    this.keyboardEvents.next(event);
   }
 
   toSelecting() {
     this.pending = null;
     this.state = State.SELECTING;
-    this.primaryInput.nativeElement.value = '';
+    this.clearInput();
   }
 
+  toIdle() {
+    this.toSelecting();
+    this.state = State.IDLE;
+  }
+
+  /**
+   * Put selected into pending state where more values are required.
+   *
+   * @param {SelectableConfig} conf
+   */
+  preSelect(conf: SelectableConfig) {
+    this.state = State.IN_SELECTABLE;
+    this.pending = SelectableFactory(this, conf);
+    this.focus();
+    this.clearInput();
+  }
+
+  /**
+   * Move pending item to selected items.
+   */
   selectPending() {
     this.selected.push(this.pending);
     this.toSelecting();
-  }
-
-  preSelect(conf: SelectableConfig) {
-    this.state = State.IN_SELECTABLE;
-    this.pending = SelectableFactory(conf);
-    this.primaryInput.nativeElement.focus();
+    this.clearInput();
   }
 
   removeSelected(index: number) {
     this.selected.splice(index, 1);
+  }
+
+  clearInput() {
+    console.log('clear');
+    this.primaryInput.nativeElement.value = '';
   }
 }
 
@@ -119,7 +148,8 @@ export enum SelectableKind {
 interface AbstractConfig {
   field: string;
   label: string;
-  helpText: string;
+  validComparisons?: Value[];
+  helpText?: string;
   icon?: string;
 }
 
@@ -136,21 +166,37 @@ export interface SelectConfig extends AbstractConfig {
 
 export type Selectable = FreetextSelectable;
 
-interface Selected {
-  displayValue(): string;
 
-  onKeypress(event: string, inputValue: string): void
+abstract class AbstractSelectable<T> {
+  public value: T;
+  public comparison = '';
+  public validComparisons: Value[] = [];
+
+  constructor(public parent: BarComponent) {
+  }
+
+  abstract displayValue(): string;
+  abstract onKeypress(event: string, inputValue: string): void;
+
+  selectValue(value: T) {
+    this.value = value;
+    this.parent.clearInput();
+    this.parent.focus();
+  }
+
+  selectComparison(comp: Value) {
+    this.comparison = comp.value;
+    this.parent.clearInput();
+    this.parent.focus();
+  }
 }
 
-class FreetextSelectable implements Selected {
+class FreetextSelectable extends AbstractSelectable<string> {
 
-  public conf: FreetextConfig;
-  public value = '';
-  public comparison: '=' = '=';
-
-  constructor(conf: FreetextConfig) {
-    this.conf = conf;
+  constructor(parent: BarComponent, public conf: FreetextConfig) {
+    super(parent);
     this.value = conf.initialValue || '';
+    this.validComparisons = conf.validComparisons || [{label: '=', value: '='}];
   }
 
   displayValue(): string {
@@ -160,15 +206,21 @@ class FreetextSelectable implements Selected {
   onKeypress(event: string, input: any): boolean {
     switch (event) {
       case 'Enter':
-        this.value = input.value;
-        return true; // done
+        this.selectValue(input.value);
+        return (this.comparison !== '' && this.value !== '');
+      default:
+        if (this.comparison === '') {
+          if (this.validComparisons.filter(v => v.value === input.value).length === 0) {
+            input.value = '';
+          }
+        }
     }
   }
 }
 
-function SelectableFactory(conf: SelectableConfig): Selectable {
+function SelectableFactory(parent: BarComponent, conf: SelectableConfig): Selectable {
   switch (conf.kind) {
     case SelectableKind.FREETEXT:
-      return new FreetextSelectable(conf);
+      return new FreetextSelectable(parent, conf);
   }
 }

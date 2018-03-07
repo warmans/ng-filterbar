@@ -1,0 +1,19 @@
+.value-list {
+  .value {
+    padding: 10px;
+
+    &:hover, &.active {
+       background-color: #f8f8f8;
+     }
+    .title {
+      font-weight: bold;
+      .icon {
+        margin: 5px 10px 5px 0px;
+      }
+    }
+    .help {
+      font-size: 0.8em;
+      color: #666;
+    }
+  }
+}

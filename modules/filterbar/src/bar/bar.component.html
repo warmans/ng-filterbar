@@ -5,12 +5,12 @@
 
       <div class="item" *ngFor="let itm of selected; let i = index;">
         <span class="label">{{ itm.conf.label }}</span>
-        <span class="comparison">{{ itm.conf.comparison }}</span>
+        <span class="comparison">{{ itm.comparison }}</span>
         <span class="values">{{ itm.displayValue() }}</span>
         <span class="close" (click)="removeSelected(i)">&#10006;</span>
       </div>
 
-      <div class="item" *ngIf="pending" [ngSwitch]="pending.conf.kind">
+      <div class="item pending" *ngIf="pending" [ngSwitch]="pending.conf.kind">
         <span class="label">{{ pending.conf.label }}</span>
         <span class="comparison">{{ pending.comparison }}</span>
       </div>
@@ -19,16 +19,15 @@
     <div class="input">
       <input #primaryInput (focus)="onFocus()" (keyup)="onKeypress($event.code)" />
 
-      <!-- MAKE THIS A NEW COMPONENT THAT CAN FILTER/SELECT WITH KEY EVENTS VIA INPUT -->
+      <!-- selectable fields -->
       <div class="selectables" *ngIf="state === states.SELECTING">
-        <div class="item" *ngFor="let conf of configs;" (click)="preSelect(conf)">
-          <div class="title">
-            <span class="icon" *ngIf="conf.icon">{{conf.icon}}</span>
-            <span class="label">{{conf.label}}</span>
-          </div>
-          <div class="help" *ngIf="conf.helpText">
-            {{conf.helpText}}
-          </div>
+        <app-value-list [filter]="primaryInput.value" [values]="configs" [keyboardEvents]="keyboardEvents" (valueSelected)="preSelect($event)"></app-value-list>
+      </div>
+
+      <!-- sub-components of fields -->
+      <div *ngIf="state === states.IN_SELECTABLE">
+        <div class="selectables" *ngIf="this.pending.comparison === ''">
+          <app-value-list [filter]="primaryInput.value" [values]="this.pending.validComparisons" [keyboardEvents]="keyboardEvents" (valueSelected)="this.pending.selectComparison($event)"></app-value-list>
         </div>
       </div>
 
@@ -38,4 +37,8 @@
     </div>
 
   </div>
+</div>
+
+<div style="width: 100%; text-align: right">
+  STATE: {{state}}
 </div>

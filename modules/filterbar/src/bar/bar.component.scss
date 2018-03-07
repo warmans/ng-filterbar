@@ -22,6 +22,11 @@
         background-color: #f8f8f8;
         display: flex;
         margin-right: 5px;
+        border: 1px solid #ccc;
+
+        &.pending{
+          border-right: none;
+        }
 
         .label {
           padding: 5px 5px 5px 5px;
@@ -62,23 +67,6 @@
         max-height: 312px;
         border: 1px solid #e5e5e5;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-
-        .item {
-          padding: 10px;
-          &:hover {
-             background-color: #f8f8f8;
-          }
-          .title {
-            font-weight: bold;
-            .icon {
-              margin: 5px 10px 5px 0px;
-            }
-          }
-          .help {
-            font-size: 0.8em;
-            color: #666;
-          }
-        }
       }
     }
     .clear {
