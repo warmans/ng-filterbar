@@ -21,14 +21,35 @@
 
       <!-- selectable fields -->
       <div class="selectables" *ngIf="state === states.SELECTING">
-        <app-value-list [filter]="primaryInput.value" [values]="configs" [keyboardEvents]="keyboardEvents" (valueSelected)="preSelect($event)"></app-value-list>
+        <app-value-list
+          [filter]="primaryInput.value"
+          [valueSource]="configsToValueSource()"
+          [keyboardEvents]="keyboardEvents"
+          (valueSelected)="preSelect($event)"></app-value-list>
       </div>
 
       <!-- sub-components of fields -->
       <div *ngIf="state === states.IN_SELECTABLE">
-        <div class="selectables" *ngIf="this.pending.comparison === ''">
-          <app-value-list [filter]="primaryInput.value" [values]="this.pending.validComparisons" [keyboardEvents]="keyboardEvents" (valueSelected)="this.pending.selectComparison($event)"></app-value-list>
+
+        <div *ngIf="this.pending.comparison === ''">
+          <app-value-list
+            [filter]="primaryInput.value"
+            [valueSource]="this.pending.comparisonsToValueSource()"
+            [keyboardEvents]="keyboardEvents"
+            (valueSelected)="this.pending.selectComparison($event)"></app-value-list>
         </div>
+
+        <div *ngIf="this.pending && this.pending.comparison !== ''">
+          <app-value-list
+            [filter]="primaryInput.value"
+            [valueSource]="this.pending.conf.valueSource"
+            [valueSourceFilters]="this.selected"
+            [valueSourcePaging]="this.pending.conf.valueSourcePaging"
+            [keyboardEvents]="keyboardEvents"
+            [allowFreeInput]="this.pending.conf.allowFreeInput"
+            (valueSelected)="this.pending.selectValue($event)"></app-value-list>
+        </div>
+
       </div>
 
     </div>

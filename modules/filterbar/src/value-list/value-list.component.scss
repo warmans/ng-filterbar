@@ -1,4 +1,13 @@
 .value-list {
+
+  position: absolute;
+  background-color: #fff;
+  margin-top: 15px;
+  min-width: 280px;
+  max-height: 312px;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
   .value {
     padding: 10px;
 

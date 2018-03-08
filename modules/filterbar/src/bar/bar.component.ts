@@ -1,5 +1,6 @@
 import {Component, ElementRef, EventEmitter, Input, ViewChild} from '@angular/core';
 import {Value} from '../value-list/value-list.component';
+import {Observable} from 'rxjs/Observable';
 
 @Component({
   selector: 'ng-filterbar',
@@ -30,7 +31,6 @@ export class BarComponent {
    * @type {SelectableConfig[]}
    */
   private configs: SelectableConfig[] = [];
-
 
   /**
    * before being added to selected values the selectable is in an incomplete pending state.
@@ -78,11 +78,6 @@ export class BarComponent {
         if (this.state === State.IDLE) {
           this.onFocus();
         }
-        if (this.pending) {
-          if (this.pending.onKeypress(event, this.primaryInput.nativeElement)) {
-            this.selectPending();
-          }
-        }
     }
 
     // forward event to any other components e.g. value-list
@@ -103,11 +98,11 @@ export class BarComponent {
   /**
    * Put selected into pending state where more values are required.
    *
-   * @param {SelectableConfig} conf
+   * @param {Value} config
    */
-  preSelect(conf: SelectableConfig) {
+  preSelect(config: Value) {
     this.state = State.IN_SELECTABLE;
-    this.pending = SelectableFactory(this, conf);
+    this.pending = SelectableFactory(this, this.configs[config.value]);
     this.focus();
     this.clearInput();
   }
@@ -126,8 +121,21 @@ export class BarComponent {
   }
 
   clearInput() {
-    console.log('clear');
     this.primaryInput.nativeElement.value = '';
+  }
+
+  configsToValueSource(): ValueSource  {
+    return (filters: Selectable[], query: string, page: number, pagesize: number): Observable<Value[]> => {
+      return Observable.of(
+        this.configs
+          .map((c, i): Value => {
+            return {value: String(i), label: c.label, helpText: c.helpText};
+          })
+          .filter((v) => {
+            return v.label.indexOf(query) > -1;
+          })
+      );
+    };
   }
 }
 
@@ -137,6 +145,8 @@ enum State {
   IN_SELECTABLE = 'in-selectable',
 }
 
+export type ValueSource = (filters: Selectable[], query: string, page: number, pagesize: number) => Observable<Value[]>;
+
 export type SelectableConfig = FreetextConfig | SelectConfig;
 
 export enum SelectableKind {
@@ -145,23 +155,24 @@ export enum SelectableKind {
   AUTOCOMPLETE = 'autocomplete',
 }
 
-interface AbstractConfig {
+interface AbstractConfig<T> {
   field: string;
   label: string;
   validComparisons?: Value[];
   helpText?: string;
   icon?: string;
+  valueSource?: ValueSource;
+  valueSourcePaging?: boolean;
+  initialValue?: T;
+  allowFreeInput?: boolean;
 }
 
-export interface FreetextConfig extends AbstractConfig {
+export interface FreetextConfig extends AbstractConfig<Value> {
   kind: SelectableKind.FREETEXT;
-  initialValue?: string;
 }
 
-export interface SelectConfig extends AbstractConfig {
+export interface SelectConfig extends AbstractConfig<Value[]> {
   kind: SelectableKind.SELECT;
-  multiselect: boolean;
-  initialValue: string[];
 }
 
 export type Selectable = FreetextSelectable;
@@ -176,12 +187,12 @@ abstract class AbstractSelectable<T> {
   }
 
   abstract displayValue(): string;
-  abstract onKeypress(event: string, inputValue: string): void;
 
   selectValue(value: T) {
     this.value = value;
     this.parent.clearInput();
     this.parent.focus();
+    this.parent.selectPending();
   }
 
   selectComparison(comp: Value) {
@@ -189,32 +200,29 @@ abstract class AbstractSelectable<T> {
     this.parent.clearInput();
     this.parent.focus();
   }
+
+  comparisonsToValueSource(): ValueSource {
+    return (filters: Selectable[], query: string, page: number, pagesize: number): Observable<Value[]> => {
+      return Observable.of(this.validComparisons.filter((v) => (v.label || v.value).indexOf(query) > -1));
+    };
+  }
 }
 
-class FreetextSelectable extends AbstractSelectable<string> {
+class FreetextSelectable extends AbstractSelectable<Value> {
 
   constructor(parent: BarComponent, public conf: FreetextConfig) {
     super(parent);
-    this.value = conf.initialValue || '';
+    this.value = conf.initialValue || null;
     this.validComparisons = conf.validComparisons || [{label: '=', value: '='}];
+
+    // if only 1 comparison is available just select it automatically.
+    if (this.validComparisons.length === 1) {
+      this.comparison = this.validComparisons[0].value;
+    }
   }
 
   displayValue(): string {
-    return this.value;
-  }
-
-  onKeypress(event: string, input: any): boolean {
-    switch (event) {
-      case 'Enter':
-        this.selectValue(input.value);
-        return (this.comparison !== '' && this.value !== '');
-      default:
-        if (this.comparison === '') {
-          if (this.validComparisons.filter(v => v.value === input.value).length === 0) {
-            input.value = '';
-          }
-        }
-    }
+    return this.value.label || this.value.value;
   }
 }
 
