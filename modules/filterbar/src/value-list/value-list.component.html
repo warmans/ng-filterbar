@@ -8,10 +8,10 @@
     {{value.helpText}}
     </div>
   </div>
-  <div class="paging" *ngIf="paging && this.valueSource">
-    <div class="left" (click)="pageBack()">BACK</div>
-    <div class="cur"></div>
-    <div class="left" (click)="pageForward()">FORWARD</div>
+  <div class="paging" *ngIf="valueSourcePaging && this.valueSource">
+    <div class="left" (click)="pageBack()" [ngClass]="{'enabled': this.page > 0}">PREV</div>
+    <div class="cur">{{page}}</div>
+    <div class="left" (click)="pageForward()" [ngClass]="{'enabled': values.length === pageSize}">NEXT</div>
   </div>
   <div *ngIf="values.length === 0 && valueSource">No values</div>
 </div>

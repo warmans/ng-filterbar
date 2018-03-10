@@ -13,6 +13,8 @@
       <div class="item pending" *ngIf="pending" [ngSwitch]="pending.conf.kind">
         <span class="label">{{ pending.conf.label }}</span>
         <span class="comparison">{{ pending.comparison }}</span>
+        <span class="values">{{ pending.displayValue() }}</span>
+        <span class="close" (click)="selectPending()" *ngIf="pending.conf.multiSelect">&#10004;</span>
       </div>
 
     </div>
@@ -53,7 +55,7 @@
       </div>
 
     </div>
-    <div class="clear">
+    <div class="reset" (click)="reset()">
       &#10006;
     </div>
 

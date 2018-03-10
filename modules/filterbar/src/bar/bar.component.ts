@@ -1,5 +1,5 @@
-import {Component, ElementRef, EventEmitter, Input, ViewChild} from '@angular/core';
-import {Value} from '../value-list/value-list.component';
+import {Component, ElementRef, EventEmitter, Input, Output, ViewChild} from '@angular/core';
+import {ValueListItem} from '../value-list/value-list.component';
 import {Observable} from 'rxjs/Observable';
 
 @Component({
@@ -19,6 +19,9 @@ export class BarComponent {
   set config(config: SelectableConfig[]) {
     this.configs = config;
   }
+
+  @Output()
+  onChange: EventEmitter<string> = new EventEmitter();
 
   get config(): SelectableConfig[] {
     return this.configs;
@@ -98,9 +101,9 @@ export class BarComponent {
   /**
    * Put selected into pending state where more values are required.
    *
-   * @param {Value} config
+   * @param {ValueListItem} config
    */
-  preSelect(config: Value) {
+  preSelect(config: ValueListItem) {
     this.state = State.IN_SELECTABLE;
     this.pending = SelectableFactory(this, this.configs[config.value]);
     this.focus();
@@ -125,10 +128,10 @@ export class BarComponent {
   }
 
   configsToValueSource(): ValueSource  {
-    return (filters: Selectable[], query: string, page: number, pagesize: number): Observable<Value[]> => {
+    return (filters: Selectable[], query: string, page: number, pagesize: number): Observable<ValueListItem[]> => {
       return Observable.of(
         this.configs
-          .map((c, i): Value => {
+          .map((c, i): ValueListItem => {
             return {value: String(i), label: c.label, helpText: c.helpText};
           })
           .filter((v) => {
@@ -137,6 +140,21 @@ export class BarComponent {
       );
     };
   }
+
+  reset() {
+    this.selected = [];
+    this.clearInput();
+    this.toIdle();
+  }
+}
+
+/**
+ * The value emitted by the component
+ */
+export interface Filter {
+  field: string;
+  comparison: string;
+  value: string[];
 }
 
 enum State {
@@ -145,7 +163,7 @@ enum State {
   IN_SELECTABLE = 'in-selectable',
 }
 
-export type ValueSource = (filters: Selectable[], query: string, page: number, pagesize: number) => Observable<Value[]>;
+export type ValueSource = (filters: Selectable[], query: string, page: number, pagesize: number) => Observable<ValueListItem[]>;
 
 export type SelectableConfig = FreetextConfig | SelectConfig;
 
@@ -155,64 +173,44 @@ export enum SelectableKind {
   AUTOCOMPLETE = 'autocomplete',
 }
 
-interface AbstractConfig<T> {
+interface AbstractConfig {
   field: string;
   label: string;
-  validComparisons?: Value[];
+  validComparisons?: ValueListItem[];
   helpText?: string;
   icon?: string;
   valueSource?: ValueSource;
   valueSourcePaging?: boolean;
-  initialValue?: T;
+  initialValue?: string[];
   allowFreeInput?: boolean;
+  multiSelect?: boolean;
+  allowEmptyValue?: boolean;
 }
 
-export interface FreetextConfig extends AbstractConfig<Value> {
+export interface FreetextConfig extends AbstractConfig {
   kind: SelectableKind.FREETEXT;
 }
 
-export interface SelectConfig extends AbstractConfig<Value[]> {
+export interface SelectConfig extends AbstractConfig {
   kind: SelectableKind.SELECT;
 }
 
 export type Selectable = FreetextSelectable;
 
-
-abstract class AbstractSelectable<T> {
-  public value: T;
-  public comparison = '';
-  public validComparisons: Value[] = [];
-
-  constructor(public parent: BarComponent) {
-  }
-
-  abstract displayValue(): string;
-
-  selectValue(value: T) {
-    this.value = value;
-    this.parent.clearInput();
-    this.parent.focus();
-    this.parent.selectPending();
-  }
-
-  selectComparison(comp: Value) {
-    this.comparison = comp.value;
-    this.parent.clearInput();
-    this.parent.focus();
-  }
-
-  comparisonsToValueSource(): ValueSource {
-    return (filters: Selectable[], query: string, page: number, pagesize: number): Observable<Value[]> => {
-      return Observable.of(this.validComparisons.filter((v) => (v.label || v.value).indexOf(query) > -1));
-    };
+function SelectableFactory(parent: BarComponent, conf: SelectableConfig): Selectable {
+  switch (conf.kind) {
+    case SelectableKind.FREETEXT:
+      return new FreetextSelectable(parent, conf);
   }
 }
 
-class FreetextSelectable extends AbstractSelectable<Value> {
+abstract class AbstractSelectable {
+  public value: string[] = [];
+  public comparison = '';
+  public validComparisons: ValueListItem[] = [];
 
-  constructor(parent: BarComponent, public conf: FreetextConfig) {
-    super(parent);
-    this.value = conf.initialValue || null;
+  constructor(public parent: BarComponent, public conf: SelectableConfig) {
+    this.value = conf.initialValue || [];
     this.validComparisons = conf.validComparisons || [{label: '=', value: '='}];
 
     // if only 1 comparison is available just select it automatically.
@@ -221,14 +219,40 @@ class FreetextSelectable extends AbstractSelectable<Value> {
     }
   }
 
-  displayValue(): string {
-    return this.value.label || this.value.value;
+  abstract displayValue(): string;
+
+  selectValue(value: ValueListItem) {
+    if (!this.conf.allowEmptyValue && value.value === '') {
+      return;
+    }
+    this.value.push(value.value);
+    this.parent.clearInput();
+    this.parent.focus();
+    if (!this.conf.multiSelect) {
+      this.parent.selectPending();
+    }
+  }
+
+  selectComparison(comp: ValueListItem) {
+    this.comparison = comp.value;
+    this.parent.clearInput();
+    this.parent.focus();
+  }
+
+  comparisonsToValueSource(): ValueSource {
+    return (filters: Selectable[], query: string, page: number, pagesize: number): Observable<ValueListItem[]> => {
+      return Observable.of(this.validComparisons.filter((v) => (v.label || v.value).indexOf(query) > -1));
+    };
+  }
+
+  toFilter(): Filter {
+    return {field: this.conf.field, comparison: this.comparison, value: this.value}
   }
 }
 
-function SelectableFactory(parent: BarComponent, conf: SelectableConfig): Selectable {
-  switch (conf.kind) {
-    case SelectableKind.FREETEXT:
-      return new FreetextSelectable(parent, conf);
+class FreetextSelectable extends AbstractSelectable {
+  displayValue(): string {
+    return this.value.join(', ');
   }
 }
+

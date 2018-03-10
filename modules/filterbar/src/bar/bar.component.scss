@@ -6,13 +6,12 @@
   padding: 5px;
 
   &:hover, &.focus {
-     border-color: #73afea;
+    border-color: #73afea;
   }
 
   .input-container {
     display: flex;
     flex-direction: row;
-    width: 100%;
 
     .selected {
       display: flex;
@@ -24,7 +23,7 @@
         margin-right: 5px;
         border: 1px solid #ccc;
 
-        &.pending{
+        &.pending {
           border-right: none;
         }
 
@@ -36,6 +35,7 @@
           margin: 0px 5px 0px 5px;
         }
         .values {
+          white-space: nowrap;
           padding: 5px 5px 5px 5px;
         }
         .close {
@@ -51,7 +51,6 @@
 
       input {
         position: relative;
-        min-width: 200px;
         border: transparent;
         width: 100%;
         outline: none;
@@ -59,8 +58,11 @@
         box-shadow: none;
       }
     }
-    .clear {
+    .reset {
       padding: 5px 5px 5px 5px;
+      &:hover {
+        cursor: pointer;
+      }
     }
   }
 }

@@ -23,11 +23,13 @@ export class AppComponent {
     helpText: 'Another value.',
     valueSourcePaging: true,
     valueSource: (filters, query, page, pagesize) => {
-      return Observable.of([{label: 'foo', value: 'foo'}, {label: 'bar', value: 'bar'}, {
-        label: 'baz',
-        value: 'baz'
-      }].filter((v) => v.label.indexOf(query) > -1));
+      const values = [];
+      for (let i = 0; i <= 100; i++) {
+        values.push({label: 'Foo ' + i, value: 'foo' + i});
+      }
+      return Observable.of(values.filter((v) => v.label.indexOf(query) > -1));
     },
+    multiSelect: true,
   }, {
     kind: SelectableKind.FREETEXT,
     field: 'baz',

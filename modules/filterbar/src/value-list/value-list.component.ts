@@ -35,14 +35,15 @@ export class ValueListComponent implements OnInit {
     return this._filter;
   }
 
-  @Output()
-  valueSelected: EventEmitter<Value> = new EventEmitter();
+  @Input()
+  pageSize: 10;
 
-  values: Value[] = [];
+  @Output()
+  valueSelected: EventEmitter<ValueListItem> = new EventEmitter();
+
+  values: ValueListItem[] = [];
 
   page = 0;
-
-  pageSize: 25;
 
   selectedValue = 0;
 
@@ -65,7 +66,7 @@ export class ValueListComponent implements OnInit {
     });
   }
 
-  select(value: Value) {
+  select(value: ValueListItem) {
     this.valueSelected.next(value);
   }
 
@@ -96,13 +97,16 @@ export class ValueListComponent implements OnInit {
     if (this.valueSub) {
       this.valueSub.unsubscribe();
     }
-    this.valueSub = this.valueSource((this.valueSourceFilters || []), this.filter, this.page, this.pageSize).subscribe((values) => {
+    this.valueSub = this.valueSource((this.valueSourceFilters || []), filter, this.page, this.pageSize).subscribe((values) => {
       this.values = values;
     });
   }
 
   pageBack() {
-    this.page = this.page === 0 ? 0 : this.page - 1;
+    if (this.page > 0) {
+      this.page = this.page - 1;
+      this.fetchValuesFromSource(this._filter);
+    }
   }
 
   pageForward() {
@@ -110,11 +114,12 @@ export class ValueListComponent implements OnInit {
     // or just unlucky.
     if (this.values.length === this.pageSize) {
       this.page++;
+      this.fetchValuesFromSource(this._filter);
     }
   }
 }
 
-export interface Value {
+export interface ValueListItem {
   value: string;
   label?: string;
   helpText?: string;
