@@ -1,12 +1,13 @@
+@import "../../scss/vars";
 
 .filterbar-container {
   width: 100%;
-  border: 1px solid #e5e5e5;
-  background-color: #fff;
-  padding: 5px;
+  border: $bar-border;
+  background-color: $bar-background-color;
+  padding: $bar-padding;
 
   &:hover, &.focus {
-    border-color: #73afea;
+    border: $bar-border-focus;
   }
 
   .input-container {
@@ -18,28 +19,28 @@
       flex-direction: row;
 
       .item {
-        background-color: #f8f8f8;
+        background-color: $bar-selected-item-background-color;
         display: flex;
-        margin-right: 5px;
-        border: 1px solid #ccc;
+        margin-right: $bar-selected-item-spacing;
+        border: $bar-selected-item-border;
 
         &.pending {
           border-right: none;
         }
 
         .label {
-          padding: 5px 5px 5px 5px;
+          padding: $common-gutter-size;
         }
         .comparison {
-          padding: 5px 0px 5px 0px;
-          margin: 0px 5px 0px 5px;
+          padding: $common-gutter-size 0 $common-gutter-size 0;
+          margin: 0 $common-gutter-size 0 $common-gutter-size;
         }
         .values {
           white-space: nowrap;
-          padding: 5px 5px 5px 5px;
+          padding: $common-gutter-size;
         }
         .close {
-          padding: 5px 5px 5px 5px;
+          padding: $common-gutter-size;
         }
       }
     }
@@ -51,18 +52,20 @@
 
       input {
         position: relative;
-        border: transparent;
         width: 100%;
         outline: none;
         border-color: transparent;
         box-shadow: none;
       }
     }
+
     .reset {
       padding: 5px 5px 5px 5px;
-      &:hover {
-        cursor: pointer;
-      }
     }
   }
+}
+
+.selectable:hover {
+  cursor: pointer;
+  background-color: $common-selectable-hover-background-color;
 }

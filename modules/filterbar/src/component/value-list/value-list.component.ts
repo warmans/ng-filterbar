@@ -11,6 +11,9 @@ import 'rxjs/add/operator/debounceTime';
 export class ValueListComponent implements OnInit {
 
   @Input()
+  initialSelectedValues: string[] = [];
+
+  @Input()
   valueSource: ValueSource;
 
   @Input()
@@ -26,6 +29,9 @@ export class ValueListComponent implements OnInit {
   allowFreeInput: boolean;
 
   @Input()
+  enableMultiselect: boolean;
+
+  @Input()
   set filter(f: string) {
     this._filter = f;
     this.page = 0;
@@ -39,13 +45,15 @@ export class ValueListComponent implements OnInit {
   pageSize: 10;
 
   @Output()
-  valueSelected: EventEmitter<ValueListItem> = new EventEmitter();
+  onValue: EventEmitter<string[]> = new EventEmitter();
+
+  valuesSelected: string[] = [];
 
   values: ValueListItem[] = [];
 
   page = 0;
 
-  selectedValue = 0;
+  focusedValue = 0;
 
   private _filter: string;
 
@@ -64,23 +72,34 @@ export class ValueListComponent implements OnInit {
     this.filterChange.asObservable().debounceTime(100).subscribe(value => {
       this.fetchValuesFromSource(value);
     });
+
+    this.valuesSelected = (this.initialSelectedValues || []);
+  }
+
+  selectMulti() {
+    if (this.enableMultiselect) {
+      this.onValue.next(this.valuesSelected);
+    }
   }
 
   select(value: ValueListItem) {
-    this.valueSelected.next(value);
+    this.toggleSelected(value.value);
+    if (!this.enableMultiselect) {
+      this.onValue.next([value.value]);
+    }
   }
 
   onKeypress(key: string) {
     switch (key) {
       case 'ArrowDown':
-        this.selectedValue = (this.selectedValue >= this.values.length - 1) ? 0 : this.selectedValue + 1;
+        this.focusedValue = (this.focusedValue >= this.values.length - 1) ? 0 : this.focusedValue + 1;
         break;
       case 'ArrowUp':
-        this.selectedValue = this.selectedValue === 0 ? this.values.length - 1 : this.selectedValue - 1;
+        this.focusedValue = this.focusedValue === 0 ? this.values.length - 1 : this.focusedValue - 1;
         break;
       case 'Enter':
         if (this.values.length > 0) {
-          this.select(this.values[this.selectedValue]);
+          this.select(this.values[this.focusedValue]);
         } else {
           if (this.allowFreeInput || !this.valueSource) {
             this.select({value: this.filter, label: this.filter});
@@ -116,6 +135,18 @@ export class ValueListComponent implements OnInit {
       this.page++;
       this.fetchValuesFromSource(this._filter);
     }
+  }
+
+  isSelected(value: string) {
+    return (this.valuesSelected.indexOf(value) !== -1);
+  }
+
+  toggleSelected(value: string) {
+    if (this.isSelected(value)) {
+      this.valuesSelected.splice(this.valuesSelected.indexOf(value), 1);
+      return;
+    }
+    this.valuesSelected.push(value);
   }
 }
 

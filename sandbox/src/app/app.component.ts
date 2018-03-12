@@ -1,5 +1,5 @@
 import {Component} from '@angular/core';
-import {SelectableConfig, SelectableKind} from '../../../modules/filterbar/src/bar/bar.component';
+import {SelectableConfig, SelectableKind} from '../../../modules/filterbar/src/component/bar/bar.component';
 import {Observable} from 'rxjs/Observable';
 import 'rxjs/add/observable/of';
 

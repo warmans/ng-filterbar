@@ -103,9 +103,12 @@ export class BarComponent {
    *
    * @param {ValueListItem} config
    */
-  preSelect(config: ValueListItem) {
+  preSelect(values: string[]) {
+    if (values.length !== 1) {
+      return;
+    }
     this.state = State.IN_SELECTABLE;
-    this.pending = SelectableFactory(this, this.configs[config.value]);
+    this.pending = SelectableFactory(this, this.configs[values[0]]);
     this.focus();
     this.clearInput();
   }
@@ -117,6 +120,22 @@ export class BarComponent {
     this.selected.push(this.pending);
     this.toSelecting();
     this.clearInput();
+  }
+
+  revertToPendingValue(index: number) {
+    this.pending = this.selected.splice(index, 1)[0];
+    this.state = State.IN_SELECTABLE;
+    this.focus();
+  }
+
+  revertToPendingComparison(index: number) {
+    if ((!this.selected[index].conf.validComparisons || this.selected[index].conf.validComparisons.length === 1)) {
+      return;
+    }
+    this.pending = this.selected.splice(index, 1)[0];
+    this.state = State.IN_SELECTABLE;
+    this.pending.comparison = '';
+    this.focus();
   }
 
   removeSelected(index: number) {
@@ -221,20 +240,22 @@ abstract class AbstractSelectable {
 
   abstract displayValue(): string;
 
-  selectValue(value: ValueListItem) {
-    if (!this.conf.allowEmptyValue && value.value === '') {
+  selectValue(value: string[]) {
+    if (!this.conf.allowEmptyValue && value.length === 0) {
       return;
     }
-    this.value.push(value.value);
+    this.value = [...value];
     this.parent.clearInput();
     this.parent.focus();
-    if (!this.conf.multiSelect) {
-      this.parent.selectPending();
-    }
+
+    this.parent.selectPending();
   }
 
-  selectComparison(comp: ValueListItem) {
-    this.comparison = comp.value;
+  selectComparison(comp: string[]) {
+    if (comp.length !== 1) {
+      return;
+    }
+    this.comparison = comp[0];
     this.parent.clearInput();
     this.parent.focus();
   }
@@ -246,7 +267,7 @@ abstract class AbstractSelectable {
   }
 
   toFilter(): Filter {
-    return {field: this.conf.field, comparison: this.comparison, value: this.value}
+    return {field: this.conf.field, comparison: this.comparison, value: this.value};
   }
 }
 
