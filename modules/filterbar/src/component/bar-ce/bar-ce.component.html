@@ -1,0 +1,20 @@
+<div class="bar-ce" contenteditable="true" (keyup)="onKeypress($event)" (click)="onClick()" #editableContent></div>
+
+<div class="values">
+    <div *ngFor="let val of tokenValues; let i = index" ><a href="#" (click)="replaceTokenValue(findCurrentToken(), val)">{{val}}</a></div>
+</div>
+
+<div>
+tokens:
+  {{tokens | json}}
+</div>
+
+<div>
+current token:
+  {{findCurrentToken() | json}}
+</div>
+
+  <div>
+    caret: {{caretPos}}
+  </div>
+
