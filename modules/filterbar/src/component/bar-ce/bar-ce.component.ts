@@ -1,5 +1,9 @@
 import {Component, ElementRef, OnInit, Renderer2, ViewChild} from '@angular/core';
 
+// https://github.com/codemirror/CodeMirror/blob/master/src/input/ContentEditableInput.js
+// http://codemirror.net/1/story.html
+// https://www.codeproject.com/Questions/897645/Replacing-selected-text-HTML-JavaScript
+
 const whitespace = [160, 32];
 
 @Component({
@@ -21,6 +25,8 @@ export class BarCeComponent implements OnInit {
 
   tokenValues = ['foo', 'bar', 'baz'];
 
+  savedRange: any;
+
   constructor(private renderer: Renderer2) {
 
   }
@@ -36,13 +42,19 @@ export class BarCeComponent implements OnInit {
 
   onKeypress(evt: KeyboardEvent) {
     this.tokenizeInput();
-    this.updateCaretPos();
+    this.saveSelection();
     this.findCurrentToken();
+
+    //todo debounce
+    if (evt.code === 'Space') {
+      this.render();
+      console.log('caret pos', this.caretPos);
+      this.restoreSelection();
+    }
   }
 
   updateCaretPos() {
     const range = window.getSelection().getRangeAt(0);
-    console.log(range);
     if (range) {
       this.caretPos = range.startOffset;
     }
@@ -95,6 +107,51 @@ export class BarCeComponent implements OnInit {
     this.editableContent.nativeElement.textContent = spliceSlice(text, token.start, token.end, newVal);
     this.tokenizeInput();
   }
+
+  render() {
+
+    this.tokens.forEach((tok, i) => {
+
+      const el = this.renderer.createElement('span');
+      el.className = 'var ' + tok.type;
+      el.innerText = tok.text;
+
+      let range = document.createRange();
+      range.setStart(this.editableContent.nativeElement, tok.start);
+      range.setEnd(this.editableContent.nativeElement, tok.end);
+      range.deleteContents();
+      range.insertNode(el);
+      console.log(range);
+
+    });
+  }
+
+  saveSelection() {
+    if (window.getSelection) {
+      this.savedRange = window.getSelection().getRangeAt(0);
+    } else if (document.getSelection()) {
+      this.savedRange = document.createRange();
+    }
+  }
+
+  restoreSelection() {
+    const isInFocus = true;
+    this.editableContent.nativeElement.focus();
+    if (this.savedRange != null) {
+      if (window.getSelection) {
+        const s = window.getSelection();
+        if (s.rangeCount > 0) {
+          s.removeAllRanges();
+        }
+        s.addRange(this.savedRange);
+      } else if (document.createRange) {
+        window.getSelection().addRange(this.savedRange);
+      } else if (document.getSelection()) {
+        this.savedRange.select();
+      }
+    }
+  }
+
 }
 
 interface Token {
@@ -112,3 +169,4 @@ function spliceSlice(str: string, start: number, end: number, replace: string) {
   }
   return str.slice(0, start) + (replace || '') + str.slice(end);
 }
+
