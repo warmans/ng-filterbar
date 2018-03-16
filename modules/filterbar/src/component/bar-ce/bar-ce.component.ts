@@ -22,43 +22,29 @@ export class BarCeComponent implements OnInit {
   tokens: Token[] = [];
 
   caretPos: number;
+  contentLength: number;
 
   tokenValues = ['foo', 'bar', 'baz'];
 
-  savedRange: any;
-
   constructor(private renderer: Renderer2) {
-
   }
 
   ngOnInit(): void {
-
   }
 
   onClick() {
-    this.updateCaretPos();
+    this.saveCaretPosition(this.editableContent.nativeElement);
     this.findCurrentToken();
   }
 
   onKeypress(evt: KeyboardEvent) {
     this.tokenizeInput();
-    this.updateCaretPos();
+    this.saveCaretPosition(this.editableContent.nativeElement);
     this.findCurrentToken();
 
     if (evt.code === 'Space') {
       this.render();
-    }
-  }
-
-  updateCaretPos() {
-    const sel = window.getSelection();
-    if (!sel) {
-      this.caretPos = 0;
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    if (range) {
-      this.caretPos = range.startOffset;
+      this.moveCaretTo(this.caretPos);
     }
   }
 
@@ -71,29 +57,11 @@ export class BarCeComponent implements OnInit {
 
 
   tokenizeInput() {
-
-    const text = this.editableContent.nativeElement.textContent.trim();
-    this.tokens = [];
-
-    let buffer = '';
-    for (let i = 0; i < text.length; i++) {
-
-      const keyCode = text.charCodeAt(i);
-
-      if (whitespace.indexOf(keyCode) === -1) {
-        buffer += text.charAt(i);
-      }
-      if (whitespace.indexOf(keyCode) > -1) {
-        if (buffer.length > 0) {
-          this.tokens.push({start: i - (buffer.length), end: i, type: 'string', text: buffer});
-          buffer = '';
-        }
-      }
-    }
-    // :/
-    if (buffer !== '') {
-      this.tokens.push({start: text.length - buffer.length, end: text.length, type: 'string', text: buffer});
-    }
+    this.tokens = tokenize(
+      this.editableContent.nativeElement.textContent,
+      {'word': /\w+/, 'whitespace': /\s+/, 'punctuation': /[^\w\s]/},
+      'invalid'
+    );
   }
 
   findCurrentToken(): Token {
@@ -106,50 +74,54 @@ export class BarCeComponent implements OnInit {
     return found;
   }
 
-  replaceTokenValue(token: Token, newVal: string) {
-    const text = this.editableContent.nativeElement.textContent.trim();
-    this.editableContent.nativeElement.textContent = spliceSlice(text, token.start, token.end, newVal);
-    this.tokenizeInput();
-  }
-
   render() {
-
-    let rendered = this.renderer.createElement('span');
-
-    this.tokens.forEach((tok, i) => {
-
+    const rendered = this.renderer.createElement('span');
+    this.tokens.forEach((tok) => {
       const el = this.renderer.createElement('span');
-      el.className = 'var ' + tok.type;
-      el.innerText = tok.text;
-
+      el.className = tok.type;
+      el.innerText = tok.token;
       this.renderer.appendChild(rendered, el);
-
-      // let range = new Range();
-      // range.setStart(text, tok.start);
-      // range.setEnd(text, tok.end);
-      // range.surroundContents(el);
-      //
-
-      //console.log(range);
-
-      // let range = document.createRange();
-      // range.setStart(this.editableContent.nativeElement, tok.start);
-      // range.setEnd(this.editableContent.nativeElement, tok.end);
-      // range.deleteContents();
-      // range.insertNode(el);
-
     });
 
     this.renderer.removeChild(this.editableContent.nativeElement, this.editableContent.nativeElement.firstChild);
     this.renderer.appendChild(this.editableContent.nativeElement, rendered);
-    this.setCaret();
   }
 
-  setCaret() {
-    this.editableContent.nativeElement.focus();
+  moveCaretTo(position: number) {
 
+    // move to end (no idea why it doesn't work in the normal way)
+    if (this.editableContent.nativeElement.textContent.length === position) {
+      let range, selection;
+      range = document.createRange();
+      range.selectNodeContents(this.editableContent.nativeElement);
+      range.collapse(false);
+      selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return;
+    }
+
+    const node = getTextNodeAtPosition(
+      this.editableContent.nativeElement,
+      position
+    );
     const sel = window.getSelection();
-    sel.collapse(this.editableContent.nativeElement, this.caretPos-2);
+    sel.collapse(node.node, node.position);
+  }
+
+  saveCaretPosition(context) {
+    const range = window.getSelection().getRangeAt(0);
+    const selected = range.toString().length; // *
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(context);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+
+    if (selected) {
+      this.caretPos = preCaretRange.toString().length - selected;
+    } else {
+      this.caretPos = preCaretRange.toString().length;
+    }
+    this.contentLength = context.textContent.length;
   }
 }
 
@@ -157,14 +129,64 @@ interface Token {
   start: number;
   end: number;
   type: string;
-  text: string;
+  token: string;
+}
+
+function getTextNodeAtPosition(root, index) {
+  let lastNode = null;
+
+  console.log(root, index);
+
+  const treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (elem: Node): number => {
+      if (index >= elem.textContent.length) {
+        index -= elem.textContent.length;
+        lastNode = elem;
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  const c = treeWalker.nextNode();
+  return {node: (c ? c : root), position: (c ? index : 0)};
 }
 
 
-function spliceSlice(str: string, start: number, end: number, replace: string) {
-  if (start < 0) {
-    start = str.length + start;
-    start = start < 0 ? 0 : start;
+function tokenize(text: string, parsers: { [index: string]: any }, deftok: string): Token[] {
+  let m, matches, l, t, tokens = [];
+  while (text) {
+    t = null;
+    m = text.length;
+    for (const key in parsers) {
+      matches = parsers[key].exec(text);
+      // try to choose the best match if there are several
+      // where "best" is the closest to the current starting point
+      if (matches && (matches.index < m)) {
+        const start = tokens.length === 0 ? 0 : tokens.map(tok => tok.token.length).reduce((prev, cur) => prev + cur);
+        t = {
+          token: matches[0],
+          type: key,
+          start: start,
+          end: start + matches[0].length
+        };
+        m = matches.index;
+      }
+    }
+    if (m) {
+      // there is text between last token and currently
+      // matched token - push that out as default or "unknown"
+      tokens.push({
+        token: text.substr(0, m),
+        type: deftok || 'unknown'
+      });
+    }
+    if (t) {
+      // push current token onto sequence
+      tokens.push(t);
+    }
+    text = text.substr(m + (t ? t.token.length : 0));
   }
-  return str.slice(0, start) + (replace || '') + str.slice(end);
+  return tokens;
 }
+

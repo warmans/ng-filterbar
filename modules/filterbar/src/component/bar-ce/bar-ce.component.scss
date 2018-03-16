@@ -4,9 +4,20 @@
   border: 1px solid #ccc;
   padding: 5px;
 
+  .unknown {
+    color: #f00;
+  }
 
-  .var {
-    background-color: palevioletred;
+  .punctuation {
+    color: #0f0;
+  }
+
+  .word {
+    color: #00f;
+  }
+
+  .whitespace {
+    background-color: #f6f6f6;
   }
 
   .input {

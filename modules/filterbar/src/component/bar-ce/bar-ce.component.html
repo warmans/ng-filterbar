@@ -1,20 +1,25 @@
 <div class="bar-ce" contenteditable="true" (keyup)="onKeypress($event)" (click)="onClick()" #editableContent></div>
 
-<div class="values">
+<!--div class="values">
     <div *ngFor="let val of tokenValues; let i = index" ><a href="#" (click)="replaceTokenValue(findCurrentToken(), val)">{{val}}</a></div>
-</div>
+</div-->
 
-<div>
+
+<pre>
+  caret: {{caretPos}}
+  total length: {{contentLength}}
+</pre>
+
+<pre>
+current token:
+{{findCurrentToken() | json}}
+</pre>
+
+<pre>
 tokens:
   {{tokens | json}}
-</div>
+</pre>
 
-<div>
-current token:
-  {{findCurrentToken() | json}}
-</div>
 
-  <div>
-    caret: {{caretPos}}
-  </div>
+
 
