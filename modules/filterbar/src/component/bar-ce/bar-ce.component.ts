@@ -1,10 +1,9 @@
-import {Component, ElementRef, OnInit, Renderer2, ViewChild} from '@angular/core';
+import {Component, ElementRef, EventEmitter, Input, OnInit, Renderer2, ViewChild} from '@angular/core';
+import {Observable} from 'rxjs/Observable';
 
 // https://github.com/codemirror/CodeMirror/blob/master/src/input/ContentEditableInput.js
 // http://codemirror.net/1/story.html
 // https://www.codeproject.com/Questions/897645/Replacing-selected-text-HTML-JavaScript
-
-const whitespace = [160, 32];
 
 @Component({
   selector: 'ng-filterbar-ce',
@@ -17,14 +16,55 @@ export class BarCeComponent implements OnInit {
   @ViewChild('editableContent')
   editableContent: ElementRef;
 
+  @Input()
+  statementConfig: StatementConfig = {
+    statementFormat: ['identifier', 'comparison', 'value'],
+    defaultTokenName: 'unknown',
+    tokenConfig: [
+      {
+        name: 'identifier',
+        pattern: /[a-zA-Z_]+/,
+        valueSource: (context: Statement, query: string, page: number, pagesize: number): Observable<string[]> => {
+          const values = [];
+          for (let i = 0; i <= 100; i++) {
+            values.push('foo' + i);
+          }
+          return Observable.of(values.filter((v) => v.indexOf(query) > -1));
+        }
+      },
+      {
+        name: 'comparison',
+        pattern: /(=|<|>|<=|>=)/,
+        valueSource: (context: Statement, query: string, page: number, pagesize: number): Observable<string[]> => {
+          return Observable.of(['=', '<', '>', '<=', '>='].filter((v) => v.indexOf(query) > -1));
+        }
+      },
+      {
+        name: 'value',
+        pattern: /([0-9]+|\"[^"]*\")/,
+        valueSource: (context: Statement, query: string, page: number, pagesize: number): Observable<string[]> => {
+          const values = [];
+          const identVal = context.tokens[0] ? context.tokens[0].token : '';
+          for (let i = 0; i <= 100; i++) {
+            values.push('"' + (identVal + i) + '"');
+          }
+          return Observable.of(values);
+        }
+      }
+    ]
+  };
+
+  public keyboardEvents: EventEmitter<KeyboardEvent> = new EventEmitter();
+
   displayDropdown = true;
 
-  tokens: Token[] = [];
+  statements: Statement[] = [];
+  activeToken: Token = null;
+  activeStatement: Statement = null;
 
   caretPos: number;
   contentLength: number;
 
-  tokenValues = ['foo', 'bar', 'baz'];
 
   constructor(private renderer: Renderer2) {
   }
@@ -33,19 +73,35 @@ export class BarCeComponent implements OnInit {
   }
 
   onClick() {
-    this.saveCaretPosition(this.editableContent.nativeElement);
-    this.findCurrentToken();
+    this.update();
+  }
+
+  onKeydown(key: KeyboardEvent):boolean {
+    switch (key.code) {
+      case 'ArrowDown':
+      case 'ArrowUp':
+      case 'Enter':
+        key.preventDefault();
+        return false;
+    }
   }
 
   onKeypress(evt: KeyboardEvent) {
-    this.tokenizeInput();
-    this.saveCaretPosition(this.editableContent.nativeElement);
-    this.findCurrentToken();
+    this.update();
+    // forward event to any other components e.g. value-list
+    this.keyboardEvents.next(evt);
+  }
 
-    if (evt.code === 'Space') {
-      this.render();
-      this.moveCaretTo(this.caretPos);
-    }
+  update() {
+    this.parseInput();
+
+    this.saveCaretPosition(this.editableContent.nativeElement);
+    this.findActiveElements();
+
+    // update UI
+    this.render();
+    this.moveCaretTo(this.caretPos);
+
   }
 
   insertValue() {
@@ -56,34 +112,50 @@ export class BarCeComponent implements OnInit {
   }
 
 
-  tokenizeInput() {
-    this.tokens = tokenize(
-      this.editableContent.nativeElement.textContent,
-      {'word': /\w+/, 'whitespace': /\s+/, 'punctuation': /[^\w\s]/},
-      'invalid'
+  parseInput() {
+    this.statements = parse(
+      this.statementConfig,
+      tokenize(
+        this.editableContent.nativeElement.textContent,
+        this.statementConfig.tokenConfig,
+        this.statementConfig.defaultTokenName || 'unknown',
+      )
     );
   }
 
-  findCurrentToken(): Token {
-    let found = null;
-    this.tokens.forEach(tok => {
-      if (this.caretPos >= tok.start && this.caretPos <= tok.end) {
-        found = tok;
-      }
+  findActiveElements() {
+    this.statements.forEach(stmnt => {
+      stmnt.tokens.forEach(tok => {
+        if (this.caretPos >= tok.start && this.caretPos <= tok.end) {
+          this.activeToken = tok;
+          this.activeStatement = stmnt;
+        }
+      });
     });
-    return found;
   }
 
   render() {
     const rendered = this.renderer.createElement('span');
-    this.tokens.forEach((tok) => {
-      const el = this.renderer.createElement('span');
-      el.className = tok.type;
-      el.innerText = tok.token;
-      this.renderer.appendChild(rendered, el);
+    this.statements.forEach((statement) => {
+
+      const stmntEl = this.renderer.createElement('span');
+      stmntEl.className = 'statement' + (statement.error ? ' error' : '') ;
+
+      statement.tokens.forEach((tok) => {
+        const tokEl = this.renderer.createElement('span');
+        tokEl.className = tok.type + (tok.invalid ? ' error' : '');
+        tokEl.textContent = tok.token;
+        tokEl.title = (tok.invalid ? 'invalid token: ' + statement.error : '';
+        this.renderer.appendChild(stmntEl, tokEl);
+      });
+
+      this.renderer.appendChild(rendered, stmntEl);
     });
 
-    this.renderer.removeChild(this.editableContent.nativeElement, this.editableContent.nativeElement.firstChild);
+    // clear input
+    this.editableContent.nativeElement.innerHTML = '';
+
+    // update with styled content
     this.renderer.appendChild(this.editableContent.nativeElement, rendered);
   }
 
@@ -123,19 +195,29 @@ export class BarCeComponent implements OnInit {
     }
     this.contentLength = context.textContent.length;
   }
-}
 
-interface Token {
-  start: number;
-  end: number;
-  type: string;
-  token: string;
+  updateActiveTokenValue(value: string[]) {
+    if (!this.activeToken) {
+      return;
+    }
+    console.log('update token value');
+    const strVal = value.join(',');
+    this.editableContent.nativeElement.textContent = spliceString(
+      this.editableContent.nativeElement.textContent,
+      this.activeToken.start,
+      this.activeToken.end,
+      strVal,
+    );
+
+    // move caret to end of the new token
+    this.moveCaretTo(this.activeToken.start + strVal.length);
+
+    this.update();
+  }
 }
 
 function getTextNodeAtPosition(root, index) {
   let lastNode = null;
-
-  console.log(root, index);
 
   const treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: (elem: Node): number => {
@@ -153,32 +235,33 @@ function getTextNodeAtPosition(root, index) {
 }
 
 
-function tokenize(text: string, parsers: { [index: string]: any }, deftok: string): Token[] {
+function tokenize(text: string, parsers: TokenConfig[], deftok: string): Token[] {
   let m, matches, l, t, tokens = [];
   while (text) {
     t = null;
     m = text.length;
-    for (const key in parsers) {
-      matches = parsers[key].exec(text);
+    (parsers || []).concat([{name: 'whitespace', pattern: /\s+/}]).forEach(p => {
+      matches = p.pattern.exec(text);
       // try to choose the best match if there are several
       // where "best" is the closest to the current starting point
       if (matches && (matches.index < m)) {
         const start = tokens.length === 0 ? 0 : tokens.map(tok => tok.token.length).reduce((prev, cur) => prev + cur);
         t = {
           token: matches[0],
-          type: key,
+          type: p.name,
           start: start,
-          end: start + matches[0].length
+          end: start + matches[0].length,
+          conf: p,
         };
         m = matches.index;
       }
-    }
+    });
     if (m) {
       // there is text between last token and currently
       // matched token - push that out as default or "unknown"
       tokens.push({
         token: text.substr(0, m),
-        type: deftok || 'unknown'
+        type: deftok || 'unknown',
       });
     }
     if (t) {
@@ -190,3 +273,75 @@ function tokenize(text: string, parsers: { [index: string]: any }, deftok: strin
   return tokens;
 }
 
+function parse(config: StatementConfig, tokens: Token[]): Statement[] {
+
+  const statements: Statement[] = [];
+  let curStatment: Statement = null;
+
+  tokens.forEach((tok) => {
+
+    curStatment = (curStatment === null) ? {tokens: [], error: '', conf: config} : curStatment;
+
+    // ignore whitespace in length of statement
+    const realStatementLength = curStatment.tokens.filter(t => t.type !== 'whitespace' && !t.invalid).length;
+
+    const expectedType = config.statementFormat[realStatementLength];
+    if (tok.type !== 'whitespace' && tok.type !== expectedType) {
+      curStatment.error = `expected ${expectedType} but encountered ${tok.type}`;
+      tok.invalid = true;
+      curStatment.tokens.push(tok);
+      return;
+    }
+    curStatment.tokens.push(tok);
+
+    // statement is complete
+    if (realStatementLength === config.statementFormat.length) {
+      statements.push(curStatment);
+      curStatment = null;
+    }
+  });
+
+  if (curStatment !== null) {
+    statements.push(curStatment);
+  }
+
+  return statements;
+}
+
+function spliceString(str: string, start: number, end: number, replace: string) {
+  if (start < 0) {
+    start = str.length + start;
+    start = start < 0 ? 0 : start;
+  }
+  return str.slice(0, start) + (replace || '') + str.slice(end);
+}
+
+export type TokenValueSource = (context: Statement, query: string, page: number, pagesize: number) => Observable<string[]>;
+
+export interface Token {
+  start: number;
+  end: number;
+  type: string;
+  token: string;
+  conf?: TokenConfig;
+  invalid?: boolean;
+}
+
+export interface StatementConfig {
+  statementFormat: string[];
+  tokenConfig: TokenConfig[];
+  defaultTokenName?: string;
+}
+
+export interface TokenConfig {
+  name: string;
+  pattern: RegExp;
+  description?: string;
+  valueSource?: TokenValueSource;
+}
+
+export interface Statement {
+  tokens: Token[];
+  error: string;
+  conf?: StatementConfig;
+}

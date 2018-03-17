@@ -1,9 +1,14 @@
-<div class="bar-ce" contenteditable="true" (keyup)="onKeypress($event)" (click)="onClick()" #editableContent></div>
+<div class="bar-ce" contenteditable="true" (keydown)="onKeydown($event)" (keyup)="onKeypress($event)" (click)="onClick()" #editableContent></div>
 
-<!--div class="values">
-    <div *ngFor="let val of tokenValues; let i = index" ><a href="#" (click)="replaceTokenValue(findCurrentToken(), val)">{{val}}</a></div>
-</div-->
-
+<div class="dropdown" *ngIf="activeToken && activeToken.conf.valueSource">
+  <app-value-list-ce
+    [token]="activeToken"
+    [statement]="activeStatement"
+    [keyboardEvents]="keyboardEvents"
+    [filter]="activeToken.token"
+    (onValue)="updateActiveTokenValue($event)">
+  </app-value-list-ce>
+</div>
 
 <pre>
   caret: {{caretPos}}
@@ -12,12 +17,12 @@
 
 <pre>
 current token:
-{{findCurrentToken() | json}}
+{{activeToken | json}}
 </pre>
 
 <pre>
 tokens:
-  {{tokens | json}}
+  {{statements | json}}
 </pre>
 
 
