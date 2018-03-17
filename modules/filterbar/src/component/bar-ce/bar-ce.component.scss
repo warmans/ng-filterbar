@@ -3,12 +3,13 @@
   font-size : 1.2em;
   white-space: pre;
   border: 1px solid #ccc;
-  padding: 10px;
+  padding: 10px 5px;
 
   .statement {
     border: 1px solid #ccc;
     background-color: #f6f6f6;
     margin-right: 5px;
+    padding: 5px;
 
     &.error {
 

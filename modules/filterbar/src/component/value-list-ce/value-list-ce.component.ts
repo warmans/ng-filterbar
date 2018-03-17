@@ -1,6 +1,6 @@
 import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
 import {Subscription} from 'rxjs/Subscription';
-import {Statement, Token} from '../bar-ce/bar-ce.component';
+import {Statement, Token, TokenConfig} from '../bar-ce/bar-ce.component';
 import 'rxjs/add/operator/debounceTime';
 
 @Component({
@@ -14,7 +14,7 @@ export class ValueListCeComponent implements OnInit {
   statement: Statement;
 
   @Input()
-  token: Token;
+  tokenConf: TokenConfig;
 
   @Input()
   valueSourcePaging: boolean;
@@ -100,13 +100,13 @@ export class ValueListCeComponent implements OnInit {
   }
 
   fetchValuesFromSource(filter: string) {
-    if (!this.token || !this.token.conf.valueSource) {
+    if (!this.tokenConf || !this.tokenConf.valueSource) {
       return;
     }
     if (this.valueSub) {
       this.valueSub.unsubscribe();
     }
-    this.valueSub = this.token.conf.valueSource(this.statement, filter, this.page, this.pageSize).subscribe((values) => {
+    this.valueSub = this.tokenConf.valueSource(this.statement, filter, this.page, this.pageSize).subscribe((values) => {
       this.values = values;
     });
   }

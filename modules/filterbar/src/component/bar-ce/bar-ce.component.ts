@@ -23,7 +23,7 @@ export class BarCeComponent implements OnInit {
     tokenConfig: [
       {
         name: 'identifier',
-        pattern: /[a-zA-Z_]+/,
+        pattern: /^[a-zA-Z][a-zA-Z0-9_]+/,
         valueSource: (context: Statement, query: string, page: number, pagesize: number): Observable<string[]> => {
           const values = [];
           for (let i = 0; i <= 100; i++) {
@@ -34,7 +34,7 @@ export class BarCeComponent implements OnInit {
       },
       {
         name: 'comparison',
-        pattern: /(=|<|>|<=|>=)/,
+        pattern: /(<=|>=|=|<|>)/,
         valueSource: (context: Statement, query: string, page: number, pagesize: number): Observable<string[]> => {
           return Observable.of(['=', '<', '>', '<=', '>='].filter((v) => v.indexOf(query) > -1));
         }
@@ -54,7 +54,9 @@ export class BarCeComponent implements OnInit {
     ]
   };
 
-  public keyboardEvents: EventEmitter<KeyboardEvent> = new EventEmitter();
+  inputActive = false;
+
+  keyboardEvents: EventEmitter<KeyboardEvent> = new EventEmitter();
 
   displayDropdown = true;
 
@@ -72,17 +74,25 @@ export class BarCeComponent implements OnInit {
   ngOnInit(): void {
   }
 
+  onFocus() {
+    this.inputActive = true;
+  }
+
   onClick() {
+    this.inputActive = true;
     this.update();
   }
 
-  onKeydown(key: KeyboardEvent):boolean {
+  onKeydown(key: KeyboardEvent): boolean {
     switch (key.code) {
       case 'ArrowDown':
       case 'ArrowUp':
       case 'Enter':
+        this.inputActive = true;
         key.preventDefault();
         return false;
+      case 'Escape':
+        this.inputActive = false;
     }
   }
 
@@ -145,7 +155,7 @@ export class BarCeComponent implements OnInit {
         const tokEl = this.renderer.createElement('span');
         tokEl.className = tok.type + (tok.invalid ? ' error' : '');
         tokEl.textContent = tok.token;
-        tokEl.title = (tok.invalid ? 'invalid token: ' + statement.error : '';
+        tokEl.title = (tok.invalid ? 'invalid token: ' + statement.error : '');
         this.renderer.appendChild(stmntEl, tokEl);
       });
 

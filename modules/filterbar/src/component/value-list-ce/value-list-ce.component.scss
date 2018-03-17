@@ -9,6 +9,8 @@
   min-width: $value-list-min-width;
   border: $value-list-border;
   box-shadow: $value-list-shadow;
+  font-family: monospace;
+  font-size : 1.2em;
 
   .selected-values {
     display: flex;

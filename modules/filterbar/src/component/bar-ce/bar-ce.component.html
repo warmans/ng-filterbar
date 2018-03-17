@@ -1,8 +1,19 @@
-<div class="bar-ce" contenteditable="true" (keydown)="onKeydown($event)" (keyup)="onKeypress($event)" (click)="onClick()" #editableContent></div>
+<div
+  class="bar-ce"
+  contenteditable="true"
+  spellcheck="false"
+  (focus)="onFocus()"
+  (keydown)="onKeydown($event)"
+  (keyup)="onKeypress($event)"
+  (click)="onClick()"
+  #editableContent
+></div>
 
-<div class="dropdown" *ngIf="activeToken && activeToken.conf.valueSource">
+<div
+  class="dropdown"
+  *ngIf="inputActive && activeToken && activeToken.conf.valueSource">
   <app-value-list-ce
-    [token]="activeToken"
+    [tokenConf]="activeToken.conf"
     [statement]="activeStatement"
     [keyboardEvents]="keyboardEvents"
     [filter]="activeToken.token"
@@ -19,12 +30,5 @@
 current token:
 {{activeToken | json}}
 </pre>
-
-<pre>
-tokens:
-  {{statements | json}}
-</pre>
-
-
 
 
